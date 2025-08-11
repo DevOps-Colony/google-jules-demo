@@ -7,7 +7,7 @@
     <p style="color: #666; margin-bottom: 2rem;">Create your account and start your DevOps journey</p>
 
     <form action="" method="post" novalidate>
-        {{ csrf_token() }}
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <div class="form-group">
             <label for="username">Username</label>
             <input type="text" id="username" name="username" class="form-input" 
