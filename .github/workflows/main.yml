@@ -29,7 +29,7 @@ jobs:
 
       - name: Terraform Apply
         id: apply
-        run: terraform apply -auto-approve -var="bucket_name=${{ vars.TF_STATE_BUCKET }}" -var="table_name=${{ vars.TF_STATE_LOCK_TABLE }}" -var="github_org=${{ github.repository_owner }}" -var="github_repo=${{ github.event.repository.name }}"
+        run: terraform apply -auto-approve -var="bucket_name=${{ vars.TF_STATE_BUCKET }}" -var="table_name=${{ vars.TF_STATE_LOCK_TABLE }}"
         working-directory: terraform/backend_setup
 
   build-and-deploy:
