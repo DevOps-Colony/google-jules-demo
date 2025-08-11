@@ -35,11 +35,18 @@ jobs:
         run: terraform apply -auto-approve
         working-directory: terraform/backend_setup
 
+      - name: Debug Terraform Output
+        id: tf-debug
+        run: |
+          terraform output -json > tf-output.json
+          cat tf-output.json
+        working-directory: terraform/backend_setup
+
       - name: Get Terraform Outputs
         id: tf-output
         run: |
           sudo apt-get update && sudo apt-get install -y jq
-          outputs=$(terraform output -json)
+          outputs=$(cat tf-output.json)
           bucket_name=$(echo "$outputs" | jq -r '.s3_bucket_name.value')
           table_name=$(echo "$outputs" | jq -r '.dynamodb_table_name.value')
           echo "bucket_name=$bucket_name" >> $GITHUB_OUTPUT
