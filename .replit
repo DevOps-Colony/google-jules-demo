@@ -2,3 +2,19 @@ modules = ["python-3.12", "web"]
 
 [nix]
 channel = "stable-25_05"
+
+[workflows]
+runButton = "Start Flask App"
+
+[[workflows.workflow]]
+name = "Start Flask App"
+author = 46302793
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python run.py"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
