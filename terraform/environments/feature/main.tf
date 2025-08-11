@@ -7,7 +7,7 @@ provider "aws" {
 data "aws_availability_zones" "available" {}
 
 module "vpc" {
-  source = "../../../modules/vpc"
+  source = "../../modules/vpc"
 
   vpc_name = var.vpc_name
   vpc_cidr = var.vpc_cidr
@@ -18,7 +18,7 @@ module "vpc" {
 }
 
 module "eks" {
-  source = "../../../modules/eks"
+  source = "../../modules/eks"
 
   cluster_name    = var.cluster_name
   cluster_version = var.cluster_version
@@ -33,13 +33,13 @@ module "eks" {
 }
 
 module "ecr" {
-  source = "../../../modules/ecr"
+  source = "../../modules/ecr"
 
   ecr_repository_name = var.ecr_repository_name
 }
 
 module "dynamodb" {
-  source = "../../../modules/dynamodb"
+  source = "../../modules/dynamodb"
 
   table_name = var.dynamodb_table_name
 }
