@@ -60,7 +60,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION || 'ap-south-1' }}
 
       - name: Set up Python
@@ -90,7 +90,7 @@ jobs:
         id: build-image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY_NAME }}
+          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
@@ -122,7 +122,7 @@ jobs:
         working-directory: terraform
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve -var="aws_region=${{ secrets.AWS_REGION || 'ap-south-1' }}" -var="ecr_repository_name=${{ secrets.ECR_REPOSITORY_NAME }}"
+        run: terraform apply -auto-approve -var="aws_region=${{ secrets.AWS_REGION || 'ap-south-1' }}" -var="ecr_repository_name=${{ secrets.ECR_REPOSITORY }}"
         working-directory: terraform
 
       - name: Setup kubectl
@@ -132,12 +132,12 @@ jobs:
         uses: azure/setup-helm@v3
 
       - name: Update kubeconfig
-        run: aws eks update-kubeconfig --name ${{ secrets.EKS_CLUSTER_NAME }} --region ${{ secrets.AWS_REGION || 'ap-south-1' }}
+        run: aws eks update-kubeconfig --name ${{ secrets.EKS_CLUSTER }} --region ${{ secrets.AWS_REGION || 'ap-south-1' }}
 
       - name: Deploy with Helm
         run: |
           helm upgrade --install my-flask-app ./helm/my-flask-app \
-            --set image.repository=${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY_NAME }} \
+            --set image.repository=${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY }} \
             --set image.tag=${{ github.sha }} \
             --namespace default \
             --create-namespace
