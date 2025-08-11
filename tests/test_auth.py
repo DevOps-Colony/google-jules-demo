@@ -1,46 +1,60 @@
 import unittest
-from app import app, db
+from unittest.mock import patch
+from app import app
 from app.models import User
+from werkzeug.security import generate_password_hash
 
 class AuthTestCase(unittest.TestCase):
     def setUp(self):
-        app.config['TESTING'] = True
-        app.config['WTF_CSRF_ENABLED'] = False
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://'
         self.app = app.test_client()
         self.app_context = app.app_context()
         self.app_context.push()
-        db.create_all()
 
     def tearDown(self):
-        db.session.remove()
-        db.drop_all()
         self.app_context.pop()
 
     def test_password_hashing(self):
-        u = User(username='susan')
-        u.set_password('cat')
-        self.assertFalse(u.check_password('dog'))
-        self.assertTrue(u.check_password('cat'))
+        from app.db import check_password
+        password_hash = generate_password_hash('cat')
+        self.assertFalse(check_password(password_hash, 'dog'))
+        self.assertTrue(check_password(password_hash, 'cat'))
 
-    def test_register(self):
+    @patch('app.routes.get_user_by_username')
+    @patch('app.routes.create_user')
+    def test_register(self, mock_create_user, mock_get_user_by_username):
+        mock_get_user_by_username.return_value = None
+        mock_create_user.return_value = True
+
         response = self.app.post('/register', data={
             'username': 'john',
             'email': 'john@example.com',
             'password': 'password',
-            'password2': 'password'
+            'password2': 'password' # this is not used anymore
         }, follow_redirects=True)
         self.assertEqual(response.status_code, 200)
-        user = User.query.filter_by(username='john').first()
-        self.assertIsNotNone(user)
-        self.assertEqual(user.email, 'john@example.com')
+        self.assertIn(b'Congratulations, you are now a registered user!', response.data)
+        mock_create_user.assert_called_once()
 
-    def test_login_logout(self):
-        # register a user
-        u = User(username='susan', email='susan@example.com')
-        u.set_password('cat')
-        db.session.add(u)
-        db.session.commit()
+    @patch('app.routes.get_user_by_username')
+    @patch('app.models.User.get')
+    def test_login_logout(self, mock_user_get, mock_get_user_by_username):
+        password_hash = generate_password_hash('cat')
+        user_data = {
+            'id': '123',
+            'username': 'susan',
+            'email': 'susan@example.com',
+            'password_hash': password_hash
+        }
+        mock_get_user_by_username.return_value = user_data
+
+        # Mock the User.get method that will be called by the user_loader
+        mock_user_get.return_value = User(
+            id=user_data['id'],
+            username=user_data['username'],
+            email=user_data['email'],
+            password_hash=user_data['password_hash']
+        )
+
 
         # login
         response = self.app.post('/login', data={
