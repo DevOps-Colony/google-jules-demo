@@ -16,7 +16,7 @@ variable "vpc_id" {
 }
 
 variable "subnet_ids" {
-  description = "List of subnet IDs where the cluster will be deployed"
+  description = "List of subnet IDs where the EKS cluster and nodes will be deployed"
   type        = list(string)
 }
 
@@ -38,10 +38,4 @@ variable "max_size" {
 variable "desired_size" {
   description = "Desired number of nodes in the node group"
   type        = number
-}
-
-variable "create_kms_key" {
-  description = "Controls if a KMS key is created for the EKS cluster"
-  type        = bool
-  default     = true
 }
