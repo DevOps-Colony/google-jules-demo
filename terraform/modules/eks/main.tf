@@ -4,6 +4,8 @@ module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "19.15.3"
 
+  create_kms_key = var.create_kms_key
+
   cluster_name    = var.cluster_name
   cluster_version = var.cluster_version
 

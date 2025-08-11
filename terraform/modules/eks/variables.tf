@@ -39,3 +39,9 @@ variable "desired_size" {
   description = "Desired number of nodes in the node group"
   type        = number
 }
+
+variable "create_kms_key" {
+  description = "Controls if a KMS key is created for the EKS cluster"
+  type        = bool
+  default     = true
+}
