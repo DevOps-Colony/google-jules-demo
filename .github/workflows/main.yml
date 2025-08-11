@@ -29,7 +29,7 @@ jobs:
 
       - name: Terraform Apply
         id: apply
-        run: terraform apply -auto-approve -var="bucket_name=${{ vars.TF_STATE_BUCKET }}" -var="table_name=${{ vars.TF_STATE_LOCK_TABLE }}"
+        run: terraform apply -auto-approve -var="bucket_name=${{ secrets.TF_STATE_BUCKET }}" -var="table_name=${{ secrets.TF_STATE_LOCK_TABLE }}"
         working-directory: terraform/backend_setup
 
   build-and-deploy:
@@ -45,8 +45,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          role-to-assume: ${{ vars.AWS_ROLE_TO_ASSUME }}
-          aws-region: ${{ vars.AWS_REGION || 'ap-south-1' }}
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ secrets.AWS_REGION || 'ap-south-1' }}
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -75,7 +75,7 @@ jobs:
         id: build-image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY_NAME }}
+          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY_NAME }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
@@ -98,14 +98,14 @@ jobs:
       - name: Terraform Init
         run: |
           terraform init \
-            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
             -backend-config="key=terraform.tfstate" \
-            -backend-config="region=${{ vars.AWS_REGION || 'ap-south-1' }}" \
-            -backend-config="dynamodb_table=${{ vars.TF_STATE_LOCK_TABLE }}"
+            -backend-config="region=${{ secrets.AWS_REGION || 'ap-south-1' }}" \
+            -backend-config="dynamodb_table=${{ secrets.TF_STATE_LOCK_TABLE }}"
         working-directory: terraform
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve -var="aws_region=${{ vars.AWS_REGION || 'ap-south-1' }}" -var="ecr_repository_name=${{ vars.ECR_REPOSITORY_NAME }}"
+        run: terraform apply -auto-approve -var="aws_region=${{ secrets.AWS_REGION || 'ap-south-1' }}" -var="ecr_repository_name=${{ secrets.ECR_REPOSITORY_NAME }}"
         working-directory: terraform
 
       - name: Setup kubectl
@@ -115,12 +115,12 @@ jobs:
         uses: azure/setup-helm@v3
 
       - name: Update kubeconfig
-        run: aws eks update-kubeconfig --name ${{ vars.EKS_CLUSTER_NAME }} --region ${{ vars.AWS_REGION || 'ap-south-1' }}
+        run: aws eks update-kubeconfig --name ${{ secrets.EKS_CLUSTER_NAME }} --region ${{ secrets.AWS_REGION || 'ap-south-1' }}
 
       - name: Deploy with Helm
         run: |
           helm upgrade --install my-flask-app ./helm/my-flask-app \
-            --set image.repository=${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY_NAME }} \
+            --set image.repository=${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY_NAME }} \
             --set image.tag=${{ github.sha }} \
             --namespace default \
             --create-namespace
