@@ -6,23 +6,11 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.15"
     }
-    random = {
-      source  = "hashicorp/random"
-      version = "~> 3.5"
-    }
   }
 }
 
 provider "aws" {
   region = var.aws_region
-}
-
-resource "random_pet" "bucket_name" {
-  length = 2
-}
-
-resource "random_pet" "table_name" {
-  length = 2
 }
 
 data "aws_caller_identity" "current" {}
@@ -32,7 +20,7 @@ data "aws_iam_role" "github_actions" {
 }
 
 resource "aws_s3_bucket" "tfstate" {
-  bucket = "tfstate-${random_pet.bucket_name.id}"
+  bucket = var.bucket_name
 
   tags = {
     Name        = "Terraform state bucket"
@@ -58,7 +46,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "tfstate" {
 }
 
 resource "aws_dynamodb_table" "tflock" {
-  name           = "tflock-${random_pet.table_name.id}"
+  name           = var.table_name
   read_capacity  = 5
   write_capacity = 5
   hash_key       = "LockID"
@@ -77,14 +65,4 @@ resource "aws_dynamodb_table" "tflock" {
 output "github_actions_role_arn" {
   description = "The ARN of the IAM role for GitHub Actions"
   value       = data.aws_iam_role.github_actions.arn
-}
-
-output "s3_bucket_name" {
-  description = "The name of the S3 bucket for the Terraform state"
-  value       = aws_s3_bucket.tfstate.bucket
-}
-
-output "dynamodb_table_name" {
-  description = "The name of the DynamoDB table for the Terraform state lock"
-  value       = aws_dynamodb_table.tflock.name
 }

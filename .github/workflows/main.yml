@@ -8,9 +8,6 @@ on:
 jobs:
   backend-setup:
     runs-on: ubuntu-latest
-    outputs:
-      bucket_name: ${{ steps.tf-output.outputs.bucket_name }}
-      table_name: ${{ steps.tf-output.outputs.table_name }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -20,7 +17,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION || 'ap-south-1' }}
+          aws-region: ${{ secrets.AWS_REGION || 'ap-south-1' }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
@@ -34,17 +31,7 @@ jobs:
 
       - name: Terraform Apply
         id: apply
-        run: terraform apply -auto-approve
-        working-directory: terraform/backend_setup
-
-      - name: Get Terraform Outputs
-        id: tf-output
-        run: |
-          outputs=$(terraform output -json)
-          bucket_name=$(echo "$outputs" | jq -r '.s3_bucket_name.value')
-          table_name=$(echo "$outputs" | jq -r '.dynamodb_table_name.value')
-          echo "bucket_name=$bucket_name" >> $GITHUB_OUTPUT
-          echo "table_name=$table_name" >> $GITHUB_OUTPUT
+        run: terraform apply -auto-approve -var="bucket_name=${{ secrets.TF_STATE_BUCKET }}" -var="table_name=${{ secrets.TF_STATE_LOCK_TABLE }}"
         working-directory: terraform/backend_setup
 
   build-and-deploy:
@@ -90,10 +77,10 @@ jobs:
       - name: Terraform Init
         run: |
           terraform init \
-            -backend-config="bucket=${{ needs.backend-setup.outputs.bucket_name }}" \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
             -backend-config="key=feature/terraform.tfstate" \
             -backend-config="region=${{ secrets.AWS_REGION || 'ap-south-1' }}" \
-            -backend-config="dynamodb_table=${{ needs.backend-setup.outputs.table_name }}"
+            -backend-config="dynamodb_table=${{ secrets.TF_STATE_LOCK_TABLE }}"
         working-directory: terraform/environments/feature
 
       - name: Terraform Apply
