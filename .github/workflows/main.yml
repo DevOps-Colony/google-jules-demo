@@ -91,23 +91,14 @@ jobs:
         run: |
           terraform init \
             -backend-config="bucket=${{ needs.backend-setup.outputs.bucket_name }}" \
-            -backend-config="key=terraform.tfstate" \
+            -backend-config="key=feature/terraform.tfstate" \
             -backend-config="region=${{ secrets.AWS_REGION || 'ap-south-1' }}" \
             -backend-config="dynamodb_table=${{ needs.backend-setup.outputs.table_name }}"
-        working-directory: terraform
+        working-directory: terraform/environments/feature
 
-      - name: Create .tfvars file
-        run: |
-          cat <<EOF > terraform/terraform.tfvars
-          aws_region        = "${{ secrets.AWS_REGION || 'ap-south-1' }}"
-          ecr_repository_name = "${{ secrets.ECR_REPOSITORY }}"
-          azs               = ${{ secrets.TF_VAR_azs }}
-          private_subnets   = ${{ secrets.TF_VAR_private_subnets }}
-          public_subnets    = ${{ secrets.TF_VAR_public_subnets }}
-          EOF
       - name: Terraform Apply
-        run: terraform apply -auto-approve
-        working-directory: terraform
+        run: terraform apply -var-file="feature.tfvars" -auto-approve
+        working-directory: terraform/environments/feature
 
       - name: Login to Amazon ECR
         id: login-ecr
