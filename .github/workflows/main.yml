@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       bucket_name: ${{ steps.tf-output.outputs.bucket_name }}
+      table_name: ${{ steps.tf-output.outputs.table_name }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -31,14 +32,16 @@ jobs:
 
       - name: Terraform Apply
         id: apply
-        run: terraform apply -auto-approve -var="table_name=${{ secrets.TF_STATE_LOCK_TABLE }}"
+        run: terraform apply -auto-approve
         working-directory: terraform/backend_setup
 
       - name: Get Terraform Outputs
         id: tf-output
         run: |
           bucket_name=$(terraform output -raw s3_bucket_name)
+          table_name=$(terraform output -raw dynamodb_table_name)
           echo "bucket_name=$bucket_name" >> $GITHUB_OUTPUT
+          echo "table_name=$table_name" >> $GITHUB_OUTPUT
         working-directory: terraform/backend_setup
 
   build-and-deploy:
@@ -110,7 +113,7 @@ jobs:
             -backend-config="bucket=${{ needs.backend-setup.outputs.bucket_name }}" \
             -backend-config="key=terraform.tfstate" \
             -backend-config="region=${{ secrets.AWS_REGION || 'ap-south-1' }}" \
-            -backend-config="dynamodb_table=${{ secrets.TF_STATE_LOCK_TABLE }}"
+            -backend-config="dynamodb_table=${{ needs.backend-setup.outputs.table_name }}"
         working-directory: terraform
 
       - name: Terraform Apply
