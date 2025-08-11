@@ -1,6 +1,7 @@
 from flask import render_template, flash, redirect, url_for, request
-from app import app, db
+from app import app
 from app.models import User
+from app.db import get_user_by_username, create_user, check_password
 from flask_login import login_user, logout_user, current_user, login_required
 from urllib.parse import urlparse
 
@@ -15,10 +16,16 @@ def login():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
     if request.method == 'POST':
-        user = User.query.filter_by(username=request.form['username']).first()
-        if user is None or not user.check_password(request.form['password']):
+        user_data = get_user_by_username(request.form['username'])
+        if user_data is None or not check_password(user_data['password_hash'], request.form['password']):
             flash('Invalid username or password')
             return redirect(url_for('login'))
+        user = User(
+            id=user_data['id'],
+            username=user_data['username'],
+            email=user_data['email'],
+            password_hash=user_data['password_hash']
+        )
         login_user(user)
         next_page = request.args.get('next')
         if not next_page or urlparse(next_page).netloc != '':
@@ -36,10 +43,14 @@ def register():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
     if request.method == 'POST':
-        user = User(username=request.form['username'], email=request.form['email'])
-        user.set_password(request.form['password'])
-        db.session.add(user)
-        db.session.commit()
+        if get_user_by_username(request.form['username']):
+            flash('Please use a different username.')
+            return redirect(url_for('register'))
+        create_user(
+            username=request.form['username'],
+            email=request.form['email'],
+            password=request.form['password']
+        )
         flash('Congratulations, you are now a registered user!')
         return redirect(url_for('login'))
     return render_template('register.html', title='Register')

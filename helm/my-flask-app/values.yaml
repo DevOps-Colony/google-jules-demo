@@ -1,0 +1,37 @@
+# helm/my-flask-app/values.yaml
+
+replicaCount: 1
+
+image:
+  repository: your-ecr-repository-url # This will be set by the CI/CD pipeline
+  pullPolicy: IfNotPresent
+  tag: "" # This will be set by the CI/CD pipeline
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: true
+  className: "alb"
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+  hosts:
+    - host: chart-example.local # This should be updated for your domain
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+
+resources: {}
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+
+# Environment variables for the application
+env:
+  AWS_REGION: "ap-south-1" # This should be parameterized
+  DYNAMODB_TABLE: "my-flask-app-users" # This should be parameterized
