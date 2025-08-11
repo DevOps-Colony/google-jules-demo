@@ -1,7 +1,24 @@
 # terraform/backend_setup/main.tf
 
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.5"
+    }
+  }
+}
+
 provider "aws" {
   region = var.aws_region
+}
+
+resource "random_pet" "bucket_name" {
+  length = 2
 }
 
 data "aws_caller_identity" "current" {}
@@ -15,7 +32,7 @@ data "aws_iam_role" "github_actions" {
 }
 
 resource "aws_s3_bucket" "tfstate" {
-  bucket = var.bucket_name
+  bucket = "tfstate-${random_pet.bucket_name.id}"
 
   tags = {
     Name        = "Terraform state bucket"
@@ -60,4 +77,9 @@ resource "aws_dynamodb_table" "tflock" {
 output "github_actions_role_arn" {
   description = "The ARN of the IAM role for GitHub Actions"
   value       = data.aws_iam_role.github_actions.arn
+}
+
+output "s3_bucket_name" {
+  description = "The name of the S3 bucket for the Terraform state"
+  value       = aws_s3_bucket.tfstate.bucket
 }
