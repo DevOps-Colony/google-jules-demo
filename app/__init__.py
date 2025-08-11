@@ -12,6 +12,12 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
 # Initialize CSRF protection
 csrf = CSRFProtect(app)
 
+# Make csrf_token available in all templates
+@app.context_processor
+def inject_csrf_token():
+    from flask_wtf.csrf import generate_csrf
+    return dict(csrf_token=generate_csrf)
+
 login = LoginManager(app)
 login.login_view = 'login'
 
