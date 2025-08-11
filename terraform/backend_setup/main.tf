@@ -21,6 +21,10 @@ resource "random_pet" "bucket_name" {
   length = 2
 }
 
+resource "random_pet" "table_name" {
+  length = 2
+}
+
 data "aws_caller_identity" "current" {}
 
 data "aws_iam_openid_connect_provider" "github" {
@@ -58,7 +62,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "tfstate" {
 }
 
 resource "aws_dynamodb_table" "tflock" {
-  name           = var.table_name
+  name           = "tflock-${random_pet.table_name.id}"
   read_capacity  = 5
   write_capacity = 5
   hash_key       = "LockID"
@@ -82,4 +86,9 @@ output "github_actions_role_arn" {
 output "s3_bucket_name" {
   description = "The name of the S3 bucket for the Terraform state"
   value       = aws_s3_bucket.tfstate.bucket
+}
+
+output "dynamodb_table_name" {
+  description = "The name of the DynamoDB table for the Terraform state lock"
+  value       = aws_dynamodb_table.tflock.name
 }
