@@ -82,6 +82,24 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ needs.backend-setup.outputs.bucket_name }}" \
+            -backend-config="key=terraform.tfstate" \
+            -backend-config="region=${{ secrets.AWS_REGION || 'ap-south-1' }}" \
+            -backend-config="dynamodb_table=${{ needs.backend-setup.outputs.table_name }}"
+        working-directory: terraform
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve -var="aws_region=${{ secrets.AWS_REGION || 'ap-south-1' }}" -var="ecr_repository_name=${{ secrets.ECR_REPOSITORY }}"
+        working-directory: terraform
+
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
@@ -106,24 +124,6 @@ jobs:
           ignore-unfixed: true
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_wrapper: false
-
-      - name: Terraform Init
-        run: |
-          terraform init \
-            -backend-config="bucket=${{ needs.backend-setup.outputs.bucket_name }}" \
-            -backend-config="key=terraform.tfstate" \
-            -backend-config="region=${{ secrets.AWS_REGION || 'ap-south-1' }}" \
-            -backend-config="dynamodb_table=${{ needs.backend-setup.outputs.table_name }}"
-        working-directory: terraform
-
-      - name: Terraform Apply
-        run: terraform apply -auto-approve -var="aws_region=${{ secrets.AWS_REGION || 'ap-south-1' }}" -var="ecr_repository_name=${{ secrets.ECR_REPOSITORY }}"
-        working-directory: terraform
 
       - name: Setup kubectl
         uses: azure/setup-kubectl@v3
