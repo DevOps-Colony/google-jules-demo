@@ -1,7 +1,36 @@
+
 {% extends "base.html" %}
 
 {% block content %}
-    <h1>Welcome to the Home Page!</h1>
-    <p>You are successfully logged in.</p>
-    <p><a href="{{ url_for('logout') }}">Logout</a></p>
+<div class="welcome-card card">
+    <div class="devops-icon">⚡</div>
+    <h1>Welcome to DevOps Colony</h1>
+    <p>Your gateway to modern DevOps practices and automation excellence. Join our community of developers, engineers, and automation enthusiasts.</p>
+    
+    <div class="feature-grid">
+        <div class="feature-item">
+            <h3>🔧 CI/CD</h3>
+            <p>Continuous Integration & Deployment</p>
+        </div>
+        <div class="feature-item">
+            <h3>☁️ Cloud</h3>
+            <p>Multi-cloud Infrastructure</p>
+        </div>
+        <div class="feature-item">
+            <h3>🐳 Containers</h3>
+            <p>Docker & Kubernetes</p>
+        </div>
+        <div class="feature-item">
+            <h3>📊 Monitoring</h3>
+            <p>Observability & Analytics</p>
+        </div>
+    </div>
+
+    <div style="margin-top: 2rem;">
+        <p style="color: #666; font-size: 1.1rem;">
+            Hello <strong>{{ current_user.username }}</strong>! 👋<br>
+            You're now part of the DevOps Colony community.
+        </p>
+    </div>
+</div>
 {% endblock %}
