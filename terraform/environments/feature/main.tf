@@ -15,6 +15,8 @@ module "vpc" {
   azs             = data.aws_availability_zones.available.names
   private_subnets = var.private_subnets
   public_subnets  = var.public_subnets
+
+  enable_nat_gateway = var.enable_nat_gateway
 }
 
 module "eks" {
