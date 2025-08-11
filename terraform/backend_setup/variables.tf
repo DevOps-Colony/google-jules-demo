@@ -16,18 +16,8 @@ variable "table_name" {
   type        = string
 }
 
-variable "github_org" {
-  description = "The GitHub organization."
-  type        = string
-}
-
-variable "github_repo" {
-  description = "The GitHub repository name."
-  type        = string
-}
-
 variable "iam_role_name" {
-  description = "The name of the IAM role for GitHub Actions."
+  description = "The name of the existing IAM role for GitHub Actions."
   type        = string
   default     = "github-actions-role"
 }
