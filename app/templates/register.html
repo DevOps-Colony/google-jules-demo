@@ -1,24 +1,43 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <h1>Register</h1>
+<div class="card">
+    <div class="devops-icon">🚀</div>
+    <h2>Join DevOps Colony</h2>
+    <p style="color: #666; margin-bottom: 2rem;">Create your account and start your DevOps journey</p>
+
     <form action="" method="post" novalidate>
-        <p>
-            <label for="username">Username</label><br>
-            <input type="text" id="username" name="username" size="32">
-        </p>
-        <p>
-            <label for="email">Email</label><br>
-            <input type="text" id="email" name="email" size="32">
-        </p>
-        <p>
-            <label for="password">Password</label><br>
-            <input type="password" id="password" name="password" size="32">
-        </p>
-        <p>
-            <label for="password2">Repeat Password</label><br>
-            <input type="password" id="password2" name="password2" size="32">
-        </p>
-        <p><input type="submit" value="Register"></p>
+        {{ csrf_token() }}
+        <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" class="form-input" 
+                   placeholder="Choose a username" required>
+        </div>
+
+        <div class="form-group">
+            <label for="email">Email Address</label>
+            <input type="email" id="email" name="email" class="form-input" 
+                   placeholder="Enter your email" required>
+        </div>
+
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" class="form-input" 
+                   placeholder="Create a strong password" required>
+        </div>
+
+        <div class="form-group">
+            <label for="password2">Confirm Password</label>
+            <input type="password" id="password2" name="password2" class="form-input" 
+                   placeholder="Confirm your password" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Create Account</button>
     </form>
+
+    <p style="margin-top: 2rem; color: #666;">
+        Already have an account? 
+        <a href="{{ url_for('login') }}" class="link">Sign in here</a>
+    </p>
+</div>
 {% endblock %}

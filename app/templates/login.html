@@ -1,16 +1,31 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <h1>Sign In</h1>
+<div class="card">
+    <div class="devops-icon">🔐</div>
+    <h2>Welcome Back</h2>
+    <p style="color: #666; margin-bottom: 2rem;">Sign in to access DevOps Colony</p>
+
     <form action="" method="post" novalidate>
-        <p>
-            <label for="username">Username</label><br>
-            <input type="text" id="username" name="username" size="32">
-        </p>
-        <p>
-            <label for="password">Password</label><br>
-            <input type="password" id="password" name="password" size="32">
-        </p>
-        <p><input type="submit" value="Sign In"></p>
+        {{ csrf_token() }}
+        <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" class="form-input" 
+                   placeholder="Enter your username" required>
+        </div>
+
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" class="form-input" 
+                   placeholder="Enter your password" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Sign In</button>
     </form>
+
+    <p style="margin-top: 2rem; color: #666;">
+        Don't have an account? 
+        <a href="{{ url_for('register') }}" class="link">Create one here</a>
+    </p>
+</div>
 {% endblock %}
