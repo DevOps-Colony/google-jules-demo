@@ -1,5 +1,6 @@
 from flask import Flask
 from flask_login import LoginManager
+from flask_wtf.csrf import CSRFProtect
 import os
 from dotenv import load_dotenv
 
@@ -7,6 +8,9 @@ load_dotenv()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
+
+# Initialize CSRF protection
+csrf = CSRFProtect(app)
 
 login = LoginManager(app)
 login.login_view = 'login'
