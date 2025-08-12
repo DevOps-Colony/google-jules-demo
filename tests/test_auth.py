@@ -3,10 +3,12 @@ from unittest.mock import patch
 from app import app
 from app.models import User
 from werkzeug.security import generate_password_hash
+from app.db import check_password
 
 class AuthTestCase(unittest.TestCase):
     def setUp(self):
         self.app = app.test_client()
+        self.app.testing = True
         self.app_context = app.app_context()
         self.app_context.push()
 
@@ -14,7 +16,6 @@ class AuthTestCase(unittest.TestCase):
         self.app_context.pop()
 
     def test_password_hashing(self):
-        from app.db import check_password
         password_hash = generate_password_hash('cat')
         self.assertFalse(check_password(password_hash, 'dog'))
         self.assertTrue(check_password(password_hash, 'cat'))
@@ -28,16 +29,15 @@ class AuthTestCase(unittest.TestCase):
         response = self.app.post('/register', data={
             'username': 'john',
             'email': 'john@example.com',
-            'password': 'password',
-            'password2': 'password' # this is not used anymore
+            'password': 'password'
         }, follow_redirects=True)
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'Congratulations, you are now a registered user!', response.data)
-        mock_create_user.assert_called_once()
+        mock_create_user.assert_called_once_with(username='john', email='john@example.com', password='password')
 
-    @patch('app.routes.get_user_by_username')
     @patch('app.models.User.get')
-    def test_login_logout(self, mock_user_get, mock_get_user_by_username):
+    @patch('app.routes.get_user_by_username')
+    def test_login_logout(self, mock_get_user_by_username, mock_user_get):
         password_hash = generate_password_hash('cat')
         user_data = {
             'id': '123',
@@ -47,14 +47,13 @@ class AuthTestCase(unittest.TestCase):
         }
         mock_get_user_by_username.return_value = user_data
 
-        # Mock the User.get method that will be called by the user_loader
+        # This mocks the user_loader
         mock_user_get.return_value = User(
             id=user_data['id'],
             username=user_data['username'],
             email=user_data['email'],
             password_hash=user_data['password_hash']
         )
-
 
         # login
         response = self.app.post('/login', data={

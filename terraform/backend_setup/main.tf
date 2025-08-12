@@ -1,5 +1,3 @@
-# terraform/backend_setup/main.tf
-
 terraform {
   required_providers {
     aws = {
@@ -13,19 +11,20 @@ provider "aws" {
   region = var.aws_region
 }
 
-data "aws_caller_identity" "current" {}
+# This data source is used to look up the OIDC provider for GitHub Actions.
+# This assumes the provider has been created in the AWS account.
+data "aws_iam_openid_connect_provider" "github" {
+  url = "https://token.actions.githubusercontent.com"
+}
 
+# This data source is used to look up an existing IAM role.
+# This assumes the role has been created with the correct trust policy.
 data "aws_iam_role" "github_actions" {
   name = var.iam_role_name
 }
 
 resource "aws_s3_bucket" "tfstate" {
   bucket = var.bucket_name
-
-  tags = {
-    Name        = "Terraform state bucket"
-    Environment = "production"
-  }
 }
 
 resource "aws_s3_bucket_versioning" "tfstate" {
@@ -37,7 +36,6 @@ resource "aws_s3_bucket_versioning" "tfstate" {
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "tfstate" {
   bucket = aws_s3_bucket.tfstate.bucket
-
   rule {
     apply_server_side_encryption_by_default {
       sse_algorithm = "AES256"
@@ -47,18 +45,12 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "tfstate" {
 
 resource "aws_dynamodb_table" "tflock" {
   name           = var.table_name
-  read_capacity  = 5
-  write_capacity = 5
+  billing_mode   = "PAY_PER_REQUEST"
   hash_key       = "LockID"
 
   attribute {
     name = "LockID"
     type = "S"
-  }
-
-  tags = {
-    Name        = "Terraform lock table"
-    Environment = "production"
   }
 }
 

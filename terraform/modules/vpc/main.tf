@@ -1,8 +1,6 @@
-# terraform/modules/vpc/main.tf
-
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
-  version = "5.1.1"
+  version = "5.1.1" # Using an older, more stable version to avoid recent provider issues.
 
   name = var.vpc_name
   cidr = var.vpc_cidr
@@ -16,6 +14,6 @@ module "vpc" {
 
   tags = {
     Terraform   = "true"
-    Environment = "dev"
+    Environment = "feature"
   }
 }

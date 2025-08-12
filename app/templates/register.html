@@ -3,6 +3,7 @@
 {% block content %}
     <h1>Register</h1>
     <form action="" method="post" novalidate>
+        {{ form.hidden_tag() }}
         <p>
             <label for="username">Username</label><br>
             <input type="text" id="username" name="username" size="32">
@@ -14,10 +15,6 @@
         <p>
             <label for="password">Password</label><br>
             <input type="password" id="password" name="password" size="32">
-        </p>
-        <p>
-            <label for="password2">Repeat Password</label><br>
-            <input type="password" id="password2" name="password2" size="32">
         </p>
         <p><input type="submit" value="Register"></p>
     </form>

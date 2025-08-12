@@ -1,5 +1,3 @@
-# terraform/modules/vpc/variables.tf
-
 variable "vpc_name" {
   description = "Name of the VPC"
   type        = string

@@ -1,5 +1,3 @@
-# terraform/modules/ecr/variables.tf
-
 variable "ecr_repository_name" {
   description = "Name of the ECR repository"
   type        = string

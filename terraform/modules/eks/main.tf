@@ -1,8 +1,6 @@
-# terraform/modules/eks/main.tf
-
 # IAM Role for EKS Cluster
 resource "aws_iam_role" "cluster" {
-  name = "${var.cluster_name}-cluster"
+  name = "${var.cluster_name}-cluster-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -25,7 +23,7 @@ resource "aws_iam_role_policy_attachment" "cluster_AmazonEKSClusterPolicy" {
 
 # IAM Role for EKS Nodes
 resource "aws_iam_role" "nodes" {
-  name = "${var.cluster_name}-nodes"
+  name = "${var.cluster_name}-node-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -59,6 +57,8 @@ resource "aws_eks_cluster" "this" {
 
   vpc_config {
     subnet_ids = var.subnet_ids
+    endpoint_private_access = true
+    endpoint_public_access  = true
   }
 
   depends_on = [

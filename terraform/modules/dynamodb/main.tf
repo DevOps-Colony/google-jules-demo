@@ -1,5 +1,3 @@
-# terraform/modules/dynamodb/main.tf
-
 resource "aws_dynamodb_table" "app_table" {
   name           = var.table_name
   billing_mode   = "PAY_PER_REQUEST"
@@ -23,6 +21,6 @@ resource "aws_dynamodb_table" "app_table" {
 
   tags = {
     Terraform   = "true"
-    Environment = "dev"
+    Environment = "feature"
   }
 }
