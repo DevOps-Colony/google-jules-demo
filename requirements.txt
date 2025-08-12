@@ -1,5 +1,0 @@
-Flask
-Flask-Login
-python-dotenv
-Werkzeug
-boto3
