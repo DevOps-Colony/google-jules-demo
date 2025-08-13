@@ -7,8 +7,9 @@ from app.db import check_password
 
 class AuthTestCase(unittest.TestCase):
     def setUp(self):
+        app.config['WTF_CSRF_ENABLED'] = False
+        app.config['TESTING'] = True
         self.app = app.test_client()
-        self.app.testing = True
         self.app_context = app.app_context()
         self.app_context.push()
 
@@ -29,7 +30,8 @@ class AuthTestCase(unittest.TestCase):
         response = self.app.post('/register', data={
             'username': 'john',
             'email': 'john@example.com',
-            'password': 'password'
+            'password': 'password',
+            'password2': 'password'
         }, follow_redirects=True)
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'Congratulations, you are now a registered user!', response.data)
