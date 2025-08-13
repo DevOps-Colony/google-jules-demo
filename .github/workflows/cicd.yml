@@ -113,6 +113,9 @@ jobs:
         with:
           terraform_wrapper: false
 
+      - name: Debug Environment Variables
+        run: env | sort
+
       - name: Auto-Import Existing Resources and Terraform Init
         id: import
         run: |
