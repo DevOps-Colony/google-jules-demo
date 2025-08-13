@@ -1,5 +1,6 @@
 from flask import render_template, flash, redirect, url_for, request
 from app import app
+from app.forms import LoginForm, RegistrationForm
 from app.models import User
 from app.db import get_user_by_username, create_user, check_password
 from flask_login import login_user, logout_user, current_user, login_required
@@ -15,9 +16,10 @@ def index():
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
-    if request.method == 'POST':
-        user_data = get_user_by_username(request.form['username'])
-        if user_data is None or not check_password(user_data['password_hash'], request.form['password']):
+    form = LoginForm()
+    if form.validate_on_submit():
+        user_data = get_user_by_username(form.username.data)
+        if user_data is None or not check_password(user_data['password_hash'], form.password.data):
             flash('Invalid username or password')
             return redirect(url_for('login'))
         user = User(
@@ -31,7 +33,7 @@ def login():
         if not next_page or urlparse(next_page).netloc != '':
             next_page = url_for('index')
         return redirect(next_page)
-    return render_template('login.html', title='Sign In')
+    return render_template('login.html', title='Sign In', form=form)
 
 @app.route('/logout')
 def logout():
@@ -42,15 +44,16 @@ def logout():
 def register():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
-    if request.method == 'POST':
-        if get_user_by_username(request.form['username']):
+    form = RegistrationForm()
+    if form.validate_on_submit():
+        if get_user_by_username(form.username.data):
             flash('Please use a different username.')
             return redirect(url_for('register'))
         create_user(
-            username=request.form['username'],
-            email=request.form['email'],
-            password=request.form['password']
+            username=form.username.data,
+            email=form.email.data,
+            password=form.password.data
         )
         flash('Congratulations, you are now a registered user!')
         return redirect(url_for('login'))
-    return render_template('register.html', title='Register')
+    return render_template('register.html', title='Register', form=form)

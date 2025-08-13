@@ -4,3 +4,4 @@ python-dotenv
 Werkzeug
 boto3
 Flask-WTF
+email-validator

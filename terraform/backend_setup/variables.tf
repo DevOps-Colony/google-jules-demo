@@ -3,14 +3,10 @@ variable "aws_region" {
   type        = string
 }
 
-variable "bucket_name" {
-  description = "The globally unique name of the S3 bucket for the Terraform state."
+variable "project_name" {
+  description = "The name of the project, used to construct resource names."
   type        = string
-}
-
-variable "table_name" {
-  description = "The name of the DynamoDB table for the Terraform state lock."
-  type        = string
+  default     = "my-flask-app"
 }
 
 variable "iam_role_name" {
