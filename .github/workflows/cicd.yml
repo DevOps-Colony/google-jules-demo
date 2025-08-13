@@ -47,7 +47,7 @@ jobs:
         run: |
           terraform apply -auto-approve \
             -var="aws_region=${{ secrets.AWS_REGION }}" \
-            -var="iam_role_name=${{ secrets.IAM_ROLE_NAME }}"
+            -var="iam_role_name=${{ secrets.AWS_ROLE_ARN }}"
         working-directory: terraform/backend_setup
 
       - name: Set Backend Outputs
