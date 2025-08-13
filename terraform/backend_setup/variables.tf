@@ -9,7 +9,7 @@ variable "project_name" {
   default     = "my-flask-app"
 }
 
-variable "iam_role_name" {
+variable "aws_role_arn" {
   description = "The name of the existing IAM role for GitHub Actions."
   type        = string
 }

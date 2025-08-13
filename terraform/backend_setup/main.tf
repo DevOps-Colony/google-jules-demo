@@ -20,7 +20,7 @@ data "aws_iam_openid_connect_provider" "github" {
 # This data source is used to look up an existing IAM role.
 # This assumes the role has been created with the correct trust policy.
 data "aws_iam_role" "github_actions" {
-  name = var.iam_role_name
+  name = var.aws_role_arn
 }
 
 locals {
