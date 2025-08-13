@@ -50,7 +50,7 @@ jobs:
           # Check for S3 bucket and import if it exists
           if aws s3api head-bucket --bucket "$S3_BUCKET_NAME" >/dev/null 2>&1; then
             echo "S3 bucket '$S3_BUCKET_NAME' exists. Importing."
-            terraform import aws_s3_bucket.tfstate "$S3_BUCKET_NAME" || echo "S3 bucket already in state or import failed."
+            terraform import -var="aws_region=${{ secrets.AWS_REGION }}" -var="iam_role_name=${{ secrets.IAM_ROLE_NAME }}" aws_s3_bucket.tfstate "$S3_BUCKET_NAME" || echo "S3 bucket already in state or import failed."
           else
             echo "S3 bucket '$S3_BUCKET_NAME' does not exist."
           fi
@@ -58,7 +58,7 @@ jobs:
           # Check for DynamoDB table and import if it exists
           if aws dynamodb describe-table --table-name "$DYNAMODB_TABLE_NAME" >/dev/null 2>&1; then
             echo "DynamoDB table '$DYNAMODB_TABLE_NAME' exists. Importing."
-            terraform import aws_dynamodb_table.tflock "$DYNAMODB_TABLE_NAME" || echo "DynamoDB table already in state or import failed."
+            terraform import -var="aws_region=${{ secrets.AWS_REGION }}" -var="iam_role_name=${{ secrets.IAM_ROLE_NAME }}" aws_dynamodb_table.tflock "$DYNAMODB_TABLE_NAME" || echo "DynamoDB table already in state or import failed."
           else
             echo "DynamoDB table '$DYNAMODB_TABLE_NAME' does not exist."
           fi
