@@ -50,7 +50,6 @@ jobs:
       - name: Set Backend Outputs
         id: backend_outputs
         run: |
-          cd terraform/backend_setup
           echo "s3_bucket_name=$(terraform output -raw s3_bucket_name)" >> $GITHUB_OUTPUT
           echo "dynamodb_table_name=$(terraform output -raw dynamodb_table_name)" >> $GITHUB_OUTPUT
         working-directory: terraform/backend_setup
