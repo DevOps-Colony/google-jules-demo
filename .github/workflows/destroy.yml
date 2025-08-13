@@ -60,24 +60,21 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_wrapper: false
+      - name: Destroy Backend Resources with AWS CLI
+        run: |
+          set -e
+          PROJECT_NAME="my-flask-app"
+          S3_BUCKET_NAME="${PROJECT_NAME}-terraform-state"
+          DYNAMODB_TABLE_NAME="${PROJECT_NAME}-terraform-lock"
 
-      - name: Terraform Init
-        run: terraform init
-        working-directory: terraform/backend_setup
+          echo "Attempting to delete S3 bucket: $S3_BUCKET_NAME"
+          aws s3 rb "s3://$S3_BUCKET_NAME" --force || echo "S3 bucket $S3_BUCKET_NAME did not exist or could not be deleted."
 
-      - name: Terraform Destroy Backend
-        run: terraform destroy -auto-approve
-        working-directory: terraform/backend_setup
+          echo "Attempting to delete DynamoDB table: $DYNAMODB_TABLE_NAME"
+          aws dynamodb delete-table --table-name "$DYNAMODB_TABLE_NAME" || echo "DynamoDB table $DYNAMODB_TABLE_NAME did not exist or could not be deleted."

@@ -40,8 +40,30 @@ jobs:
         run: terraform init
         working-directory: terraform/backend_setup
 
-      - name: Terraform Apply
+      - name: Terraform Apply (Idempotent)
         run: |
+          set -e
+          PROJECT_NAME="my-flask-app"
+          S3_BUCKET_NAME="${PROJECT_NAME}-terraform-state"
+          DYNAMODB_TABLE_NAME="${PROJECT_NAME}-terraform-lock"
+
+          # Check for S3 bucket and import if it exists
+          if aws s3api head-bucket --bucket "$S3_BUCKET_NAME" >/dev/null 2>&1; then
+            echo "S3 bucket '$S3_BUCKET_NAME' exists. Importing."
+            terraform import aws_s3_bucket.tfstate "$S3_BUCKET_NAME" || echo "S3 bucket already in state or import failed."
+          else
+            echo "S3 bucket '$S3_BUCKET_NAME' does not exist."
+          fi
+
+          # Check for DynamoDB table and import if it exists
+          if aws dynamodb describe-table --table-name "$DYNAMODB_TABLE_NAME" >/dev/null 2>&1; then
+            echo "DynamoDB table '$DYNAMODB_TABLE_NAME' exists. Importing."
+            terraform import aws_dynamodb_table.tflock "$DYNAMODB_TABLE_NAME" || echo "DynamoDB table already in state or import failed."
+          else
+            echo "DynamoDB table '$DYNAMODB_TABLE_NAME' does not exist."
+          fi
+
+          # Apply changes - will create resources if they don't exist, or do nothing if imported.
           terraform apply -auto-approve \
             -var="aws_region=${{ secrets.AWS_REGION }}" \
             -var="iam_role_name=${{ secrets.IAM_ROLE_NAME }}"
