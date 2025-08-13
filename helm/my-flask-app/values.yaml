@@ -1,0 +1,28 @@
+replicaCount: 1
+
+image:
+  repository: "" # Overwritten by CI/CD pipeline
+  pullPolicy: IfNotPresent
+  tag: "" # Overwritten by CI/CD pipeline
+
+service:
+  type: ClusterIP
+  port: 5000
+
+ingress:
+  enabled: true
+  className: "alb"
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+  hosts:
+    - host: # Overwritten by CI/CD pipeline or needs to be set manually
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+
+# Non-sensitive environment variables
+env:
+  AWS_REGION: "" # Overwritten by CI/CD pipeline
+  DYNAMODB_TABLE: "" # Overwritten by CI/CD pipeline
+  FLASK_APP: "run.py"
