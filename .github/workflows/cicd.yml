@@ -1,9 +1,6 @@
 name: CI/CD Pipeline
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
     inputs:
       environment:
@@ -47,9 +44,9 @@ jobs:
         run: |
           terraform apply -auto-approve \
             -var="aws_region=${{ secrets.AWS_REGION }}" \
-            -var="aws_role_arn=${{ secrets.AWS_ROLE_ARN }}"
+            -var="iam_role_name=${{ secrets.IAM_ROLE_NAME }}"
         working-directory: terraform/backend_setup
-
+      
       - name: Set Backend Outputs
         id: backend_outputs
         run: |
@@ -99,7 +96,7 @@ jobs:
         id: import
         run: |
           set -e
-
+          
           # Extract names from tfvars file
           EKS_CLUSTER_NAME=$(grep "cluster_name" "${{ github.event.inputs.environment }}.tfvars" | awk -F'=' '{print $2}' | tr -d ' "')
           ECR_REPO_NAME=$(grep "ecr_repository_name" "${{ github.event.inputs.environment }}.tfvars" | awk -F'=' '{print $2}' | tr -d ' "')
