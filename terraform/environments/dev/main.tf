@@ -39,3 +39,48 @@ module "dynamodb" {
 
   table_name = var.dynamodb_table_name
 }
+
+data "aws_eks_cluster_auth" "this" {
+  name = module.eks.cluster_name
+}
+
+provider "kubernetes" {
+  host                   = module.eks.cluster_endpoint
+  cluster_ca_certificate = module.eks.cluster_ca_certificate
+  token                  = data.aws_eks_cluster_auth.this.token
+}
+
+resource "kubernetes_config_map_v1" "aws_auth" {
+  metadata {
+    name      = "aws-auth"
+    namespace = "kube-system"
+  }
+
+  data = {
+    mapRoles = yamlencode(concat(
+      [
+        {
+          rolearn  = module.eks.node_role_arn
+          username = "system:node:{{EC2PrivateDNSName}}"
+          groups   = [
+            "system:bootstrappers",
+            "system:nodes",
+          ]
+        },
+      ],
+      [
+        {
+          rolearn  = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.iam_role_name}"
+          username = "admin"
+          groups   = [
+            "system:masters",
+          ]
+        }
+      ]
+    ))
+  }
+
+  depends_on = [module.eks]
+}
+
+data "aws_caller_identity" "current" {}
