@@ -88,7 +88,7 @@ jobs:
       - name: Terraform Plan and Apply
         id: tf-apply
         run: |
-          terraform plan -var-file="${{ github.event.inputs.environment }}.tfvars" -out=tfplan
+          terraform plan -var="cicd_role_arn=${{ secrets.AWS_ROLE_ARN }}" -var-file="${{ github.event.inputs.environment }}.tfvars" -out=tfplan
           terraform apply -auto-approve tfplan
           echo "cluster_name=$(terraform output -raw cluster_name)" >> $GITHUB_OUTPUT
           echo "node_role_arn=$(terraform output -raw node_role_arn)" >> $GITHUB_OUTPUT

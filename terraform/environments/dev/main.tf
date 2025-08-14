@@ -70,7 +70,7 @@ resource "kubernetes_config_map_v1" "aws_auth" {
       ],
       [
         {
-          rolearn  = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.iam_role_name}"
+          rolearn  = var.cicd_role_arn
           username = "admin"
           groups   = [
             "system:masters",
@@ -82,5 +82,3 @@ resource "kubernetes_config_map_v1" "aws_auth" {
 
   depends_on = [module.eks]
 }
-
-data "aws_caller_identity" "current" {}
