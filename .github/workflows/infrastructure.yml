@@ -25,6 +25,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      - name: Cache Terraform plugins
+        uses: actions/cache@v3
+        with:
+          path: ~/.terraform.d/plugin-cache
+          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -54,6 +59,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      - name: Cache Terraform plugins
+        uses: actions/cache@v3
+        with:
+          path: ~/.terraform.d/plugin-cache
+          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -77,12 +87,6 @@ jobs:
       - name: Terraform Plan
         run: terraform plan -var-file="${{ github.event.inputs.environment }}.tfvars" -out=tfplan
         working-directory: terraform/environments/${{ github.event.inputs.environment }}
-      - name: Upload Terraform Working Directory
-        uses: actions/upload-artifact@v4
-        with:
-          name: tf-working-dir-${{ github.event.inputs.environment }}
-          path: terraform/environments/${{ github.event.inputs.environment }}
-          retention-days: 1
 
   apply_infra:
     name: 'Apply ${{ github.event.inputs.environment }} Infrastructure'
@@ -96,6 +100,13 @@ jobs:
       node_role_arn: ${{ steps.tf-apply.outputs.node_role_arn }}
       ecr_repository_url: ${{ steps.tf-apply.outputs.ecr_repository_url }}
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Cache Terraform plugins
+        uses: actions/cache@v3
+        with:
+          path: ~/.terraform.d/plugin-cache
+          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -105,13 +116,6 @@ jobs:
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_wrapper: false
-      - name: Create Terraform Directory
-        run: mkdir -p terraform/environments/${{ github.event.inputs.environment }}
-      - name: Download Terraform Working Directory
-        uses: actions/download-artifact@v4
-        with:
-          name: tf-working-dir-${{ github.event.inputs.environment }}
-          path: terraform/environments/${{ github.event.inputs.environment }}
       - name: Terraform Apply
         id: tf-apply
         run: |
@@ -131,6 +135,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      - name: Cache Terraform plugins
+        uses: actions/cache@v3
+        with:
+          path: ~/.terraform.d/plugin-cache
+          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:

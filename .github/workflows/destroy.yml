@@ -26,6 +26,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      - name: Cache Terraform plugins
+        uses: actions/cache@v3
+        with:
+          path: ~/.terraform.d/plugin-cache
+          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -46,13 +51,6 @@ jobs:
       - name: Terraform Plan Destroy
         run: terraform plan -destroy -var-file="${{ github.event.inputs.environment }}.tfvars" -out=tfdestroyplan
         working-directory: terraform/environments/${{ github.event.inputs.environment }}
-      - name: Upload Terraform Destroy Plan
-        uses: actions/upload-artifact@v4
-        with:
-          name: tf-destroy-working-dir-${{ github.event.inputs.environment }}
-          path: terraform/environments/${{ github.event.inputs.environment }}
-          retention-days: 1
-
   apply-destroy:
     name: "Apply Destruction of ${{ github.event.inputs.environment }} environment"
     runs-on: ubuntu-latest
@@ -61,6 +59,13 @@ jobs:
       id-token: write
       contents: read
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Cache Terraform plugins
+        uses: actions/cache@v3
+        with:
+          path: ~/.terraform.d/plugin-cache
+          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -70,13 +75,6 @@ jobs:
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_wrapper: false
-      - name: Create Terraform Directory
-        run: mkdir -p terraform/environments/${{ github.event.inputs.environment }}
-      - name: Download Terraform Destroy Plan
-        uses: actions/download-artifact@v4
-        with:
-          name: tf-destroy-working-dir-${{ github.event.inputs.environment }}
-          path: terraform/environments/${{ github.event.inputs.environment }}
       - name: Terraform Apply Destroy
         run: terraform apply -auto-approve tfdestroyplan
         working-directory: terraform/environments/${{ github.event.inputs.environment }}
