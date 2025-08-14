@@ -77,16 +77,13 @@ jobs:
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_wrapper: false
-      - name: Make auto_import.sh executable
-        run: chmod +x ${{ github.workspace }}/scripts/auto_import.sh
-      - name: Run Auto-Import Script and Terraform Init
-        run: ${{ github.workspace }}/scripts/auto_import.sh
-        env:
-          ENVIRONMENT: ${{ github.event.inputs.environment }}
-          BUCKET: ${{ needs.provision_backend.outputs.s3_bucket_name }}
-          KEY: "${{ github.event.inputs.environment }}/terraform.tfstate"
-          REGION: ${{ secrets.AWS_REGION }}
-          DYNAMO_TABLE: ${{ needs.provision_backend.outputs.dynamodb_table_name }}
+      - name: Terraform Init
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ needs.provision_backend.outputs.s3_bucket_name }}" \
+            -backend-config="key=${{ github.event.inputs.environment }}/terraform.tfstate" \
+            -backend-config="region=${{ secrets.AWS_REGION }}" \
+            -backend-config="dynamodb_table=${{ needs.provision_backend.outputs.dynamodb_table_name }}"
         working-directory: terraform/environments/${{ github.event.inputs.environment }}
       - name: Terraform Plan and Apply
         id: tf-apply
