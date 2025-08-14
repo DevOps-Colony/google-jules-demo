@@ -28,7 +28,7 @@ DYNAMO_TABLE_NAME=$(grep "dynamodb_table_name" "${ENVIRONMENT}.tfvars" | awk -F'
 # Check and import EKS Cluster
 if aws eks describe-cluster --name "$EKS_CLUSTER_NAME" >/dev/null 2>&1; then
   echo "EKS cluster '$EKS_CLUSTER_NAME' exists."
-  if ! terraform state list | grep -q 'module.eks.aws_eks_cluster.this'; then
+  if ! (terraform state list 2>/dev/null || true) | grep -q 'module.eks.aws_eks_cluster.this'; then
     echo "Importing EKS cluster..."
     terraform import -var-file="${ENVIRONMENT}.tfvars" module.eks.aws_eks_cluster.this "$EKS_CLUSTER_NAME"
   else
@@ -41,7 +41,7 @@ fi
 # Check and import ECR Repository
 if aws ecr describe-repositories --repository-names "$ECR_REPO_NAME" >/dev/null 2>&1; then
   echo "ECR repository '$ECR_REPO_NAME' exists."
-  if ! terraform state list | grep -q 'module.ecr.aws_ecr_repository.app'; then
+  if ! (terraform state list 2>/dev/null || true) | grep -q 'module.ecr.aws_ecr_repository.app'; then
     echo "Importing ECR repository..."
     terraform import -var-file="${ENVIRONMENT}.tfvars" module.ecr.aws_ecr_repository.app "$ECR_REPO_NAME"
   else
@@ -54,7 +54,7 @@ fi
 # Check and import App's DynamoDB Table
 if aws dynamodb describe-table --table-name "$DYNAMO_TABLE_NAME" >/dev/null 2>&1; then
   echo "App DynamoDB table '$DYNAMO_TABLE_NAME' exists."
-  if ! terraform state list | grep -q 'module.dynamodb.aws_dynamodb_table.app_table'; then
+  if ! (terraform state list 2>/dev/null || true) | grep -q 'module.dynamodb.aws_dynamodb_table.app_table'; then
     echo "Importing App DynamoDB table..."
     terraform import -var-file="${ENVIRONMENT}.tfvars" module.dynamodb.aws_dynamodb_table.app_table "$DYNAMO_TABLE_NAME"
   else
