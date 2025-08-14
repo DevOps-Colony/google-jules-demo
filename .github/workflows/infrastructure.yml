@@ -49,13 +49,17 @@ jobs:
           IAM_ROLE_NAME: ${{ secrets.IAM_ROLE_NAME }}
         working-directory: terraform/backend_setup
 
-  plan_environment:
-    name: 'Plan ${{ github.event.inputs.environment }} Environment'
+  provision_environment:
+    name: 'Plan and Apply ${{ github.event.inputs.environment }} Environment'
     runs-on: ubuntu-latest
     needs: provision_backend
     permissions:
       id-token: write
       contents: read
+    outputs:
+      cluster_name: ${{ steps.tf-apply.outputs.cluster_name }}
+      node_role_arn: ${{ steps.tf-apply.outputs.node_role_arn }}
+      ecr_repository_url: ${{ steps.tf-apply.outputs.ecr_repository_url }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -84,41 +88,10 @@ jobs:
           REGION: ${{ secrets.AWS_REGION }}
           DYNAMO_TABLE: ${{ needs.provision_backend.outputs.dynamodb_table_name }}
         working-directory: terraform/environments/${{ github.event.inputs.environment }}
-      - name: Terraform Plan
-        run: terraform plan -var-file="${{ github.event.inputs.environment }}.tfvars" -out=tfplan
-        working-directory: terraform/environments/${{ github.event.inputs.environment }}
-
-  apply_infra:
-    name: 'Apply ${{ github.event.inputs.environment }} Infrastructure'
-    runs-on: ubuntu-latest
-    needs: plan_environment
-    permissions:
-      id-token: write
-      contents: read
-    outputs:
-      cluster_name: ${{ steps.tf-apply.outputs.cluster_name }}
-      node_role_arn: ${{ steps.tf-apply.outputs.node_role_arn }}
-      ecr_repository_url: ${{ steps.tf-apply.outputs.ecr_repository_url }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Cache Terraform plugins
-        uses: actions/cache@v3
-        with:
-          path: ~/.terraform.d/plugin-cache
-          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_wrapper: false
-      - name: Terraform Apply
+      - name: Terraform Plan and Apply
         id: tf-apply
         run: |
+          terraform plan -var-file="${{ github.event.inputs.environment }}.tfvars" -out=tfplan
           terraform apply -auto-approve tfplan
           echo "cluster_name=$(terraform output -raw cluster_name)" >> $GITHUB_OUTPUT
           echo "node_role_arn=$(terraform output -raw node_role_arn)" >> $GITHUB_OUTPUT
@@ -128,7 +101,7 @@ jobs:
   apply_kubernetes_auth:
     name: 'Apply Kubernetes Auth Config'
     runs-on: ubuntu-latest
-    needs: apply_infra
+    needs: provision_environment
     permissions:
       id-token: write
       contents: read
@@ -153,8 +126,8 @@ jobs:
         run: |
           terraform init
           terraform apply -auto-approve \
-            -var="cluster_name=${{ needs.apply_infra.outputs.cluster_name }}" \
-            -var="node_role_arn=${{ needs.apply_infra.outputs.node_role_arn }}"
+            -var="cluster_name=${{ needs.provision_environment.outputs.cluster_name }}" \
+            -var="node_role_arn=${{ needs.provision_environment.outputs.node_role_arn }}"
         working-directory: terraform/kubernetes_config
 
   trigger_application_ci:
@@ -163,8 +136,8 @@ jobs:
     uses: ./.github/workflows/application.yml
     with:
       environment: ${{ github.event.inputs.environment }}
-      cluster_name: ${{ needs.apply_infra.outputs.cluster_name }}
-      ecr_repository_url: ${{ needs.apply_infra.outputs.ecr_repository_url }}
+      cluster_name: ${{ needs.provision_environment.outputs.cluster_name }}
+      ecr_repository_url: ${{ needs.provision_environment.outputs.ecr_repository_url }}
     secrets:
       AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
