@@ -1,15 +1,26 @@
 name: 'Application CI/CD'
 
 on:
-  workflow_run:
-    workflows: ["Infrastructure Provisioning"]
-    types:
-      - completed
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      cluster_name:
+        required: true
+        type: string
+      ecr_repository_url:
+        required: true
+        type: string
+    secrets:
+      AWS_ROLE_ARN:
+        required: true
+      SONAR_TOKEN:
+        required: true
 
 jobs:
   build-and-deploy:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
-    name: 'Build and Deploy Application'
+    name: 'Build and Deploy Application to ${{ inputs.environment }}'
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -18,28 +29,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download backend outputs
-        uses: actions/download-artifact@v4
-        with:
-          name: backend-outputs
-          run-id: ${{ github.event.workflow_run.id }}
-
-      - name: Download environment outputs
-        uses: actions/download-artifact@v4
-        with:
-          name: environment-outputs-${{ github.event.workflow_run.event.inputs.environment }}
-          run-id: ${{ github.event.workflow_run.id }}
-
-      - name: Load outputs into environment
-        run: |
-          source backend_outputs.env
-          cat tf_outputs.json | jq -r 'to_entries|map("TF_OUT_\(.key)=\(.value.value|tostring)")|.[]' >> $GITHUB_ENV
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.TF_OUT_aws_region }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -65,7 +59,7 @@ jobs:
         id: build-image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: ${{ env.TF_OUT_ecr_repository_name }}
+          ECR_REPOSITORY: ${{ inputs.ecr_repository_url }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
@@ -92,16 +86,12 @@ jobs:
         uses: azure/setup-helm@v3
 
       - name: Update kubeconfig
-        run: aws eks update-kubeconfig --name ${{ env.TF_OUT_cluster_name }} --region ${{ env.TF_OUT_aws_region }}
+        run: aws eks update-kubeconfig --name ${{ inputs.cluster_name }} --region ${{ secrets.AWS_REGION }}
 
       - name: Deploy with Helm
         run: |
           helm upgrade --install my-flask-app ./helm/my-flask-app \
-            --set image.repository=${{ env.TF_OUT_ecr_repository_url }} \
-            --set image.tag=${{ github.sha }} \
-            --set ingress.hosts[0].host=${{ env.TF_OUT_alb_dns_name }} \
-            --set env.AWS_REGION=${{ env.TF_OUT_aws_region }} \
-            --set env.DYNAMODB_TABLE=${{ env.TF_OUT_dynamodb_table_name }} \
-            --set-file secret.yaml=<(echo -n "secret-key: $(openssl rand -hex 32)")
-            --namespace default \
-            --create-namespace
+            --set image.repository=${{ inputs.ecr_repository_url }} \
+            --set image.tag=${{ github.sha }}
+            # Other values like ingress host and app DB table would also be passed from infra workflow
+            # For now, keeping it simple as they are not used in the helm chart directly
