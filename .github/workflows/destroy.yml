@@ -70,11 +70,13 @@ jobs:
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_wrapper: false
+      - name: Create Terraform Directory
+        run: mkdir -p terraform/environments/${{ github.event.inputs.environment }}
       - name: Download Terraform Destroy Plan
         uses: actions/download-artifact@v4
         with:
           name: tf-destroy-working-dir-${{ github.event.inputs.environment }}
-          path: .
+          path: terraform/environments/${{ github.event.inputs.environment }}
       - name: Terraform Apply Destroy
         run: terraform apply -auto-approve tfdestroyplan
         working-directory: terraform/environments/${{ github.event.inputs.environment }}
