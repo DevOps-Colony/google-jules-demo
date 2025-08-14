@@ -25,6 +25,30 @@ EKS_CLUSTER_NAME=$(grep "cluster_name" "${ENVIRONMENT}.tfvars" | awk -F'=' '{pri
 ECR_REPO_NAME=$(grep "ecr_repository_name" "${ENVIRONMENT}.tfvars" | awk -F'=' '{print $2}' | tr -d ' "')
 DYNAMO_TABLE_NAME=$(grep "dynamodb_table_name" "${ENVIRONMENT}.tfvars" | awk -F'=' '{print $2}' | tr -d ' "')
 
+# Check and import IAM Roles
+CLUSTER_ROLE_NAME="${EKS_CLUSTER_NAME}-cluster-role"
+NODE_ROLE_NAME="${EKS_CLUSTER_NAME}-node-role"
+
+if aws iam get-role --role-name "$CLUSTER_ROLE_NAME" >/dev/null 2>&1; then
+  echo "IAM role '$CLUSTER_ROLE_NAME' exists."
+  if ! (terraform state list 2>/dev/null || true) | grep -q 'module.eks.aws_iam_role.cluster'; then
+    echo "Importing EKS cluster IAM role..."
+    terraform import -var-file="${ENVIRONMENT}.tfvars" module.eks.aws_iam_role.cluster "$CLUSTER_ROLE_NAME"
+  fi
+else
+  echo "IAM role '$CLUSTER_ROLE_NAME' does not exist."
+fi
+
+if aws iam get-role --role-name "$NODE_ROLE_NAME" >/dev/null 2>&1; then
+  echo "IAM role '$NODE_ROLE_NAME' exists."
+  if ! (terraform state list 2>/dev/null || true) | grep -q 'module.eks.aws_iam_role.nodes'; then
+    echo "Importing EKS node IAM role..."
+    terraform import -var-file="${ENVIRONMENT}.tfvars" module.eks.aws_iam_role.nodes "$NODE_ROLE_NAME"
+  fi
+else
+  echo "IAM role '$NODE_ROLE_NAME' does not exist."
+fi
+
 # Check and import EKS Cluster
 if aws eks describe-cluster --name "$EKS_CLUSTER_NAME" >/dev/null 2>&1; then
   echo "EKS cluster '$EKS_CLUSTER_NAME' exists."
@@ -36,6 +60,20 @@ if aws eks describe-cluster --name "$EKS_CLUSTER_NAME" >/dev/null 2>&1; then
   fi
 else
   echo "EKS cluster '$EKS_CLUSTER_NAME' does not exist. Skipping import."
+fi
+
+# Check and import EKS Node Group
+NODE_GROUP_NAME="${EKS_CLUSTER_NAME}-node-group"
+if aws eks describe-nodegroup --cluster-name "$EKS_CLUSTER_NAME" --nodegroup-name "$NODE_GROUP_NAME" >/dev/null 2>&1; then
+  echo "EKS node group '$NODE_GROUP_NAME' exists."
+  if ! (terraform state list 2>/dev/null || true) | grep -q 'module.eks.aws_eks_node_group.this'; then
+    echo "Importing EKS node group..."
+    terraform import -var-file="${ENVIRONMENT}.tfvars" module.eks.aws_eks_node_group.this "${EKS_CLUSTER_NAME}:${NODE_GROUP_NAME}"
+  else
+    echo "EKS node group already in state."
+  fi
+else
+  echo "EKS node group '$NODE_GROUP_NAME' does not exist. Skipping import."
 fi
 
 # Check and import ECR Repository
