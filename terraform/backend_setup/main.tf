@@ -23,8 +23,13 @@ data "aws_iam_role" "github_actions" {
   name = var.iam_role_name
 }
 
+locals {
+  s3_bucket_name = "${var.project_name}-terraform-state"
+  dynamodb_name  = "${var.project_name}-terraform-lock"
+}
+
 resource "aws_s3_bucket" "tfstate" {
-  bucket = var.bucket_name
+  bucket = local.s3_bucket_name
 }
 
 resource "aws_s3_bucket_versioning" "tfstate" {
@@ -44,7 +49,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "tfstate" {
 }
 
 resource "aws_dynamodb_table" "tflock" {
-  name           = var.table_name
+  name           = local.dynamodb_name
   billing_mode   = "PAY_PER_REQUEST"
   hash_key       = "LockID"
 
@@ -57,4 +62,14 @@ resource "aws_dynamodb_table" "tflock" {
 output "github_actions_role_arn" {
   description = "The ARN of the IAM role for GitHub Actions"
   value       = data.aws_iam_role.github_actions.arn
+}
+
+output "s3_bucket_name" {
+  description = "The name of the S3 bucket for Terraform state"
+  value       = aws_s3_bucket.tfstate.bucket
+}
+
+output "dynamodb_table_name" {
+  description = "The name of the DynamoDB table for Terraform state lock"
+  value       = aws_dynamodb_table.tflock.name
 }
