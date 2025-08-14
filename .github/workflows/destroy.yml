@@ -66,5 +66,8 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
 
+      - name: Make destroy_backend.sh executable
+        run: chmod +x ${{ github.workspace }}/scripts/destroy_backend.sh
+
       - name: Destroy Backend Resources
-        run: ./scripts/destroy_backend.sh
+        run: ${{ github.workspace }}/scripts/destroy_backend.sh
