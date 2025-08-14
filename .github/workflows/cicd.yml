@@ -1,0 +1,229 @@
+name: CI/CD Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'The environment to deploy to'
+        required: true
+        type: choice
+        options:
+          - feature
+          - dev
+        default: 'dev'
+
+jobs:
+  backend-setup:
+    runs-on: ubuntu-latest
+    outputs:
+      s3_bucket_name: ${{ steps.backend_outputs.outputs.s3_bucket_name }}
+      dynamodb_table_name: ${{ steps.backend_outputs.outputs.dynamodb_table_name }}
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: terraform/backend_setup
+
+      - name: Terraform Apply (Idempotent)
+        run: |
+          set -e
+          PROJECT_NAME="my-flask-app"
+          S3_BUCKET_NAME="${PROJECT_NAME}-terraform-state"
+          DYNAMODB_TABLE_NAME="${PROJECT_NAME}-terraform-lock"
+
+          # Check for S3 bucket and import if it exists
+          if aws s3api head-bucket --bucket "$S3_BUCKET_NAME" >/dev/null 2>&1; then
+            echo "S3 bucket '$S3_BUCKET_NAME' exists. Importing."
+            terraform import -var="aws_region=${{ secrets.AWS_REGION }}" -var="iam_role_name=${{ secrets.IAM_ROLE_NAME }}" aws_s3_bucket.tfstate "$S3_BUCKET_NAME" || echo "S3 bucket already in state or import failed."
+          else
+            echo "S3 bucket '$S3_BUCKET_NAME' does not exist."
+          fi
+
+          # Check for DynamoDB table and import if it exists
+          if aws dynamodb describe-table --table-name "$DYNAMODB_TABLE_NAME" >/dev/null 2>&1; then
+            echo "DynamoDB table '$DYNAMODB_TABLE_NAME' exists. Importing."
+            terraform import -var="aws_region=${{ secrets.AWS_REGION }}" -var="iam_role_name=${{ secrets.IAM_ROLE_NAME }}" aws_dynamodb_table.tflock "$DYNAMODB_TABLE_NAME" || echo "DynamoDB table already in state or import failed."
+          else
+            echo "DynamoDB table '$DYNAMODB_TABLE_NAME' does not exist."
+          fi
+
+          # Apply changes - will create resources if they don't exist, or do nothing if imported.
+          terraform apply -auto-approve \
+            -var="aws_region=${{ secrets.AWS_REGION }}" \
+            -var="iam_role_name=${{ secrets.IAM_ROLE_NAME }}"
+        working-directory: terraform/backend_setup
+      
+      - name: Set Backend Outputs
+        id: backend_outputs
+        run: |
+          echo "s3_bucket_name=$(terraform output -raw s3_bucket_name)" >> $GITHUB_OUTPUT
+          echo "dynamodb_table_name=$(terraform output -raw dynamodb_table_name)" >> $GITHUB_OUTPUT
+        working-directory: terraform/backend_setup
+
+  build-and-deploy:
+    needs: backend-setup
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run unit tests
+        run: python -m unittest discover tests
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v4
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_wrapper: false
+
+      - name: Debug Environment Variables
+        run: env | sort
+
+      - name: Auto-Import Existing Resources and Terraform Init
+        id: import
+        run: |
+          set -e
+          
+          # Extract names from tfvars file
+          EKS_CLUSTER_NAME=$(grep "cluster_name" "${{ github.event.inputs.environment }}.tfvars" | awk -F'=' '{print $2}' | tr -d ' "')
+          ECR_REPO_NAME=$(grep "ecr_repository_name" "${{ github.event.inputs.environment }}.tfvars" | awk -F'=' '{print $2}' | tr -d ' "')
+          DYNAMO_TABLE_NAME=$(grep "dynamodb_table_name" "${{ github.event.inputs.environment }}.tfvars" | awk -F'=' '{print $2}' | tr -d ' "')
+
+          echo "Checking for existing resources to import..."
+
+          # Initialize terraform first to be able to run state commands
+          terraform init \
+            -backend-config="bucket=${{ needs.backend-setup.outputs.s3_bucket_name }}" \
+            -backend-config="key=${{ github.event.inputs.environment }}/terraform.tfstate" \
+            -backend-config="region=${{ secrets.AWS_REGION }}" \
+            -backend-config="dynamodb_table=${{ needs.backend-setup.outputs.dynamodb_table_name }}"
+
+          # Check and import EKS Cluster
+          if aws eks describe-cluster --name "$EKS_CLUSTER_NAME" >/dev/null 2>&1; then
+            echo "EKS cluster '$EKS_CLUSTER_NAME' exists."
+            if ! terraform state list | grep -q 'module.eks.aws_eks_cluster.this'; then
+              echo "Importing EKS cluster..."
+              terraform import module.eks.aws_eks_cluster.this "$EKS_CLUSTER_NAME"
+            else
+              echo "EKS cluster already in state."
+            fi
+          else
+            echo "EKS cluster '$EKS_CLUSTER_NAME' does not exist. Skipping import."
+          fi
+
+          # Check and import ECR Repository
+          if aws ecr describe-repositories --repository-names "$ECR_REPO_NAME" >/dev/null 2>&1; then
+            echo "ECR repository '$ECR_REPO_NAME' exists."
+            if ! terraform state list | grep -q 'module.ecr.aws_ecr_repository.app'; then
+              echo "Importing ECR repository..."
+              terraform import module.ecr.aws_ecr_repository.app "$ECR_REPO_NAME"
+            else
+              echo "ECR repository already in state."
+            fi
+          else
+            echo "ECR repository '$ECR_REPO_NAME' does not exist. Skipping import."
+          fi
+
+          # Check and import DynamoDB Table
+          if aws dynamodb describe-table --table-name "$DYNAMO_TABLE_NAME" >/dev/null 2>&1; then
+            echo "DynamoDB table '$DYNAMO_TABLE_NAME' exists."
+            if ! terraform state list | grep -q 'module.dynamodb.aws_dynamodb_table.app_table'; then
+              echo "Importing DynamoDB table..."
+              terraform import module.dynamodb.aws_dynamodb_table.app_table "$DYNAMO_TABLE_NAME"
+            else
+              echo "DynamoDB table already in state."
+            fi
+          else
+            echo "DynamoDB table '$DYNAMO_TABLE_NAME' does not exist. Skipping import."
+          fi
+        working-directory: terraform/environments/${{ github.event.inputs.environment }}
+
+      - name: Terraform Apply
+        id: tf-apply
+        run: |
+          terraform apply -var-file="${{ github.event.inputs.environment }}.tfvars" -auto-approve
+          echo "alb_dns_name=$(terraform output -raw alb_dns_name)" >> $GITHUB_OUTPUT
+        working-directory: terraform/environments/${{ github.event.inputs.environment }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ fromJson(steps.tf-apply.outputs.ecr_repository_url).repository_name }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "image_url=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@v0.31.0
+        with:
+          image-ref: ${{ steps.build-image.outputs.image_url }}
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name $(echo '${{ fromJson(steps.tf-apply.outputs.cluster_name).value }}') --region ${{ secrets.AWS_REGION }}
+
+      - name: Deploy with Helm
+        run: |
+          helm upgrade --install my-flask-app ./helm/my-flask-app \
+            --set image.repository=${{ fromJson(steps.tf-apply.outputs.ecr_repository_url).repository_url }} \
+            --set image.tag=${{ github.sha }} \
+            --set ingress.hosts[0].host=${{ fromJson(steps.tf-apply.outputs.alb_dns_name).value }} \
+            --set env.AWS_REGION=${{ secrets.AWS_REGION }} \
+            --set env.DYNAMODB_TABLE=${{ fromJson(steps.tf-apply.outputs.dynamodb_table_name).value }} \
+            --set-file secret.yaml=<(echo -n "secret-key: $(openssl rand -hex 32)")
+            --namespace default \
+            --create-namespace
