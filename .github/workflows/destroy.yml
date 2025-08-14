@@ -47,7 +47,11 @@ jobs:
             -backend-config="dynamodb_table=my-flask-app-terraform-lock"
         working-directory: terraform/environments/${{ github.event.inputs.environment }}
 
-      - name: Terraform Destroy
+      - name: Terraform Destroy Node Group
+        run: terraform destroy -target=module.eks.aws_eks_node_group.this -var-file="${{ github.event.inputs.environment }}.tfvars" -auto-approve
+        working-directory: terraform/environments/${{ github.event.inputs.environment }}
+
+      - name: Terraform Destroy Remaining Resources
         run: terraform destroy -var-file="${{ github.event.inputs.environment }}.tfvars" -auto-approve
         working-directory: terraform/environments/${{ github.event.inputs.environment }}
 
