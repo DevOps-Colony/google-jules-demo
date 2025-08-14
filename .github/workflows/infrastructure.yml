@@ -36,10 +36,10 @@ jobs:
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_wrapper: false
-      
+
       - name: Make backend_setup.sh executable
         run: chmod +x ${{ github.workspace }}/scripts/backend_setup.sh
-      
+
       - name: Run Backend Setup Script
         id: set_backend_outputs
         run: ${{ github.workspace }}/scripts/backend_setup.sh
@@ -47,7 +47,7 @@ jobs:
           AWS_REGION: ${{ secrets.AWS_REGION }}
           IAM_ROLE_NAME: ${{ secrets.IAM_ROLE_NAME }}
         working-directory: terraform/backend_setup
-      
+
       - name: Upload Backend Outputs
         uses: actions/upload-artifact@v4
         with:
@@ -77,7 +77,7 @@ jobs:
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_wrapper: false
-      
+
       - name: Make auto_import.sh executable
         run: chmod +x ${{ github.workspace }}/scripts/auto_import.sh
 
