@@ -87,6 +87,7 @@ jobs:
           KEY: "${{ github.event.inputs.environment }}/terraform.tfstate"
           REGION: ${{ secrets.AWS_REGION }}
           DYNAMO_TABLE: ${{ needs.provision_backend.outputs.dynamodb_table_name }}
+          CICD_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
         working-directory: terraform/environments/${{ github.event.inputs.environment }}
       - name: Terraform Plan and Apply
         id: tf-apply
