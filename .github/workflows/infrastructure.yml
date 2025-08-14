@@ -77,11 +77,11 @@ jobs:
       - name: Terraform Plan
         run: terraform plan -var-file="${{ github.event.inputs.environment }}.tfvars" -out=tfplan
         working-directory: terraform/environments/${{ github.event.inputs.environment }}
-      - name: Upload Terraform Plan
+      - name: Upload Terraform Working Directory
         uses: actions/upload-artifact@v4
         with:
-          name: tfplan-${{ github.event.inputs.environment }}
-          path: terraform/environments/${{ github.event.inputs.environment }}/tfplan
+          name: tf-working-dir-${{ github.event.inputs.environment }}
+          path: terraform/environments/${{ github.event.inputs.environment }}
           retention-days: 1
 
   apply_infra:
@@ -107,10 +107,10 @@ jobs:
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_wrapper: false
-      - name: Download Terraform Plan
+      - name: Download Terraform Working Directory
         uses: actions/download-artifact@v4
         with:
-          name: tfplan-${{ github.event.inputs.environment }}
+          name: tf-working-dir-${{ github.event.inputs.environment }}
           path: terraform/environments/${{ github.event.inputs.environment }}
       - name: Terraform Apply
         id: tf-apply
