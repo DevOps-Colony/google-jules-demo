@@ -1,0 +1,107 @@
+name: 'Application CI/CD'
+
+on:
+  workflow_run:
+    workflows: ["Infrastructure Provisioning"]
+    types:
+      - completed
+
+jobs:
+  build-and-deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    name: 'Build and Deploy Application'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download backend outputs
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-outputs
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Download environment outputs
+        uses: actions/download-artifact@v4
+        with:
+          name: environment-outputs-${{ github.event.workflow_run.event.inputs.environment }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Load outputs into environment
+        run: |
+          source backend_outputs.env
+          cat tf_outputs.json | jq -r 'to_entries|map("TF_OUT_\(.key)=\(.value.value|tostring)")|.[]' >> $GITHUB_ENV
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.TF_OUT_aws_region }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run unit tests
+        run: python -m unittest discover tests
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v4
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ env.TF_OUT_ecr_repository_name }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "image_url=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Setup Trivy
+        uses: aquasecurity/setup-trivy@v0.2.0
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          skip-setup-trivy: true
+          image-ref: ${{ steps.build-image.outputs.image_url }}
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name ${{ env.TF_OUT_cluster_name }} --region ${{ env.TF_OUT_aws_region }}
+
+      - name: Deploy with Helm
+        run: |
+          helm upgrade --install my-flask-app ./helm/my-flask-app \
+            --set image.repository=${{ env.TF_OUT_ecr_repository_url }} \
+            --set image.tag=${{ github.sha }} \
+            --set ingress.hosts[0].host=${{ env.TF_OUT_alb_dns_name }} \
+            --set env.AWS_REGION=${{ env.TF_OUT_aws_region }} \
+            --set env.DYNAMODB_TABLE=${{ env.TF_OUT_dynamodb_table_name }} \
+            --set-file secret.yaml=<(echo -n "secret-key: $(openssl rand -hex 32)")
+            --namespace default \
+            --create-namespace

@@ -66,15 +66,5 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Destroy Backend Resources with AWS CLI
-        run: |
-          set -e
-          PROJECT_NAME="my-flask-app"
-          S3_BUCKET_NAME="${PROJECT_NAME}-terraform-state"
-          DYNAMODB_TABLE_NAME="${PROJECT_NAME}-terraform-lock"
-
-          echo "Attempting to delete S3 bucket: $S3_BUCKET_NAME"
-          aws s3 rb "s3://$S3_BUCKET_NAME" --force || echo "S3 bucket $S3_BUCKET_NAME did not exist or could not be deleted."
-
-          echo "Attempting to delete DynamoDB table: $DYNAMODB_TABLE_NAME"
-          aws dynamodb delete-table --table-name "$DYNAMODB_TABLE_NAME" || echo "DynamoDB table $DYNAMODB_TABLE_NAME did not exist or could not be deleted."
+      - name: Destroy Backend Resources
+        run: ./scripts/destroy_backend.sh
