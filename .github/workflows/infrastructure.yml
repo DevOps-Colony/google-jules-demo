@@ -37,9 +37,12 @@ jobs:
         with:
           terraform_wrapper: false
 
+      - name: Make backend_setup.sh executable
+        run: chmod +x ${{ github.workspace }}/scripts/backend_setup.sh
+
       - name: Run Backend Setup Script
         id: set_backend_outputs
-        run: ./scripts/backend_setup.sh
+        run: ${{ github.workspace }}/scripts/backend_setup.sh
         env:
           AWS_REGION: ${{ secrets.AWS_REGION }}
           IAM_ROLE_NAME: ${{ secrets.IAM_ROLE_NAME }}
@@ -75,8 +78,11 @@ jobs:
         with:
           terraform_wrapper: false
 
+      - name: Make auto_import.sh executable
+        run: chmod +x ${{ github.workspace }}/scripts/auto_import.sh
+
       - name: Run Auto-Import Script
-        run: ./scripts/auto_import.sh
+        run: ${{ github.workspace }}/scripts/auto_import.sh
         env:
           ENVIRONMENT: ${{ github.event.inputs.environment }}
           BUCKET: ${{ needs.provision_backend.outputs.s3_bucket_name }}
