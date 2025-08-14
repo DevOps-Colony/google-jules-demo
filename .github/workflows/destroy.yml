@@ -51,6 +51,9 @@ jobs:
         run: terraform destroy -target=module.eks.aws_eks_node_group.this -var-file="${{ github.event.inputs.environment }}.tfvars" -auto-approve
         working-directory: terraform/environments/${{ github.event.inputs.environment }}
 
+      - name: Wait for Node Group to Detach
+        run: echo "Waiting for 60 seconds for AWS to detach node group..." && sleep 60
+
       - name: Terraform Destroy Remaining Resources
         run: terraform destroy -var-file="${{ github.event.inputs.environment }}.tfvars" -auto-approve
         working-directory: terraform/environments/${{ github.event.inputs.environment }}
