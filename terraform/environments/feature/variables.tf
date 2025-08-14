@@ -72,3 +72,8 @@ variable "dynamodb_table_name" {
   description = "Name of the DynamoDB table"
   type        = string
 }
+
+variable "cicd_role_arn" {
+  description = "The ARN of the IAM role used by the CI/CD pipeline."
+  type        = string
+}
