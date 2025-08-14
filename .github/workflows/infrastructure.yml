@@ -37,6 +37,13 @@ jobs:
         with:
           terraform_wrapper: false
 
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Make backend_setup.sh executable
+        run: chmod +x scripts/backend_setup.sh
+
+          
       - name: Run Backend Setup Script
         id: set_backend_outputs
         run: ./scripts/backend_setup.sh
